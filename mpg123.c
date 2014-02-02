@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <strings.h>
 #include <mpg123.h>
-#include "sc3000.h"
+#include "soundcloud3000.h"
 
 mpg123_handle *mpg_open_file(const char *filename) {
   int err = MPG123_OK;
@@ -32,22 +32,3 @@ mpg123_handle *mpg_open_file(const char *filename) {
 
   return mh;
 }
-
-float *mpeg_read_buffer(mpg123_handle *mh, int size)
-{
-  float *buffer = malloc(size * sizeof(float));
-  size_t done = 0;
-  int err = MPG123_OK;
-
-  err = mpg123_read(mh, (unsigned char *) buffer, size * sizeof(float), &done);
-
-  if (err == MPG123_OK || err == MPG123_DONE) {
-    return buffer;
-  }
-  else {
-    free(buffer);
-    fprintf(stderr, "%s", mpg123_plain_strerror(err));
-    return NULL;
-  }
-}
-

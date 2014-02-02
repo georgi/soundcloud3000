@@ -1,5 +1,5 @@
 #include "stdio.h"
-#include "sc3000.h"
+#include "soundcloud3000.h"
 
 int main(int argc, char* args[]) {
     if (argc != 2) {

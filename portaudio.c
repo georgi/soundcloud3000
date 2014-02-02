@@ -2,7 +2,7 @@
 #include <math.h>
 #include <string.h>
 
-#include "sc3000.h"
+#include "soundcloud3000.h"
 
 static int paCallback(const void *inputBuffer,
                       void *outputBuffer,
