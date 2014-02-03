@@ -70,12 +70,30 @@ float rms(float *v, int n)
     return sqrt(sum / n);
 }
 
-int portaudio_write_from_mpg(Portaudio *portaudio, mpg123_handle *mh)
+int portaudio_write_from_stream(Portaudio *portaudio, Stream *stream)
 {
     int err;
     size_t done = 0;
+    long rate;
+    int channels, encoding;
 
-    err = mpg123_read(mh, (unsigned char *) portaudio->buffer, portaudio->size * sizeof(float), &done);
+    mpg123_getformat(stream->mpg123, &rate, &channels, &encoding);
+    
+    err = mpg123_read(stream->mpg123,
+                      (unsigned char *) portaudio->buffer,
+                      portaudio->size * sizeof(float),
+                      &done);
+
+    if (err == MPG123_NEED_MORE) {
+        err = mpg123_decode(stream->mpg123,
+                            stream->body + stream->position,
+                            stream->size - stream->position,
+                            (unsigned char *) portaudio->buffer,
+                            portaudio->size * sizeof(float),
+                            &done);
+    }
+
+    stream->position += done;
 
     portaudio->rms = rms(portaudio->buffer, portaudio->size);
 
