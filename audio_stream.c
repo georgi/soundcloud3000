@@ -59,7 +59,7 @@ Stream *stream_open(const char *url)
 
     stream->position = 0;
     stream->url = url;
-    stream->body = malloc(1);
+    stream->body = NULL;
     stream->size = 0;
 
     fprintf(stderr, "stream_open: %s\n", url);

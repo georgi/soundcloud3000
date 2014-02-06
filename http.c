@@ -30,7 +30,7 @@ Response *http_request(const char *url)
     CURL *curl;
     CURLcode res;
     Response *response = malloc(sizeof(Response));
-    response->body = malloc(1);  
+    response->body = NULL;
     response->size = 0;
     
     curl = curl_easy_init();

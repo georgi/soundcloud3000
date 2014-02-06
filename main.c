@@ -16,9 +16,8 @@ int main() {
     }
   
     mpg123_init();
-
-    int err = Pa_Initialize();
     
+    int err = Pa_Initialize();
     if (err != paNoError) {
         fprintf(stderr, "%s", Pa_GetErrorText(err));
         exit(1);
@@ -52,7 +51,7 @@ int main() {
     while (1) {
         int err = portaudio_write_from_stream(portaudio, stream);
 
-        if (err != MPG123_OK && err != MPG123_NEED_MORE && err != MPG123_NEW_FORMAT) {
+        if (err != MPG123_OK && err != MPG123_NEW_FORMAT) {
             fprintf(stderr, "%s", mpg123_plain_strerror(err));
             break;
         }

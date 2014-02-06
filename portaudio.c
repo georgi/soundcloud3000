@@ -34,6 +34,7 @@ Portaudio *portaudio_open_stream(int framesPerBuffer)
 
     portaudio->size = framesPerBuffer * 2;
     portaudio->buffer = (float *) malloc(sizeof(float) * portaudio->size);
+    memset(portaudio->buffer, 0, sizeof(float) * portaudio->size);
 
     err = Pa_OpenDefaultStream(&portaudio->stream,
                                0,           /* no input channels */
@@ -74,23 +75,22 @@ int portaudio_write_from_stream(Portaudio *portaudio, Stream *stream)
 {
     int err;
     size_t done = 0;
-    long rate;
-    int channels, encoding;
+    unsigned char *buffer = (unsigned char*) portaudio->buffer;
+    size_t buffer_size = portaudio->size * sizeof(float);
 
-    mpg123_getformat(stream->mpg123, &rate, &channels, &encoding);
+    memset(portaudio->buffer, 0, buffer_size);
     
-    err = mpg123_read(stream->mpg123,
-                      (unsigned char *) portaudio->buffer,
-                      portaudio->size * sizeof(float),
-                      &done);
+    err = mpg123_read(stream->mpg123, buffer, buffer_size, &done);
 
     if (err == MPG123_NEED_MORE) {
-        err = mpg123_decode(stream->mpg123,
-                            stream->body + stream->position,
-                            stream->size - stream->position,
-                            (unsigned char *) portaudio->buffer,
-                            portaudio->size * sizeof(float),
-                            &done);
+        if (stream->size - stream->position > 4096) {
+            err = mpg123_decode(stream->mpg123,
+                                stream->body + stream->position,
+                                stream->size - stream->position,
+                                buffer,
+                                buffer_size,
+                                &done);
+        }
     }
 
     stream->position += done;
