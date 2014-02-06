@@ -35,10 +35,11 @@ typedef struct {
 } Stream;
 
 typedef struct {
-    PaStream *stream;
+    PaStream *pa_stream;
+    Stream *stream;
     int size;
     float *buffer;
-    float rms;
+    pthread_t thread;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 } Portaudio;
@@ -51,8 +52,6 @@ Portaudio * portaudio_open_stream(int framesPerBuffer);
 
 void portaudio_wait(Portaudio *portaudio);
 
-int portaudio_write_from_stream(Portaudio *portaudio, Stream *stream);
-
 int portaudio_start(Portaudio *portaudio);
 
 int portaudio_stop(Portaudio *portaudio);
@@ -60,5 +59,7 @@ int portaudio_stop(Portaudio *portaudio);
 int portaudio_close(Portaudio *portaudio);
 
 Stream *stream_open(const char *url);
+
+void stream_seek(Stream *stream, long position);
 
 void stream_close(Stream *stream);

@@ -1,12 +1,26 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "termbox/src/termbox.h"
 #include "soundcloud3000.h"
 
 int main() {
+    int err;
     Api api;
+    struct tb_event ev;
+
     api.host = "api.soundcloud.com";
     api.client_id = "344564835576cb4df3cad0e34fa2fe0a";
+
+    err = tb_init();
+
+    if (err) {
+        fprintf(stderr, "tb_init() failed with error code %d\n", err);
+        return 1;
+    }
+
+    tb_select_input_mode(TB_INPUT_ESC);
+    tb_clear();
 
     TrackList *tracks = api_recent_tracks(&api);
 
@@ -17,7 +31,7 @@ int main() {
   
     mpg123_init();
     
-    int err = Pa_Initialize();
+    err = Pa_Initialize();
     if (err != paNoError) {
         fprintf(stderr, "%s", Pa_GetErrorText(err));
         exit(1);
@@ -39,28 +53,27 @@ int main() {
 
     sprintf(url, "%s?client_id=%s", tracks->tracks[0].stream_url, api.client_id);
 
-    Stream *stream = stream_open(url);
+    portaudio->stream = stream_open(url);
 
-    if (stream == NULL) {
+    if (portaudio->stream == NULL) {
         fprintf(stderr, "stream_open failed\n");
         exit(1);
     }
 
-    usleep(1000000);
-    
-    while (1) {
-        int err = portaudio_write_from_stream(portaudio, stream);
-
-        if (err != MPG123_OK && err != MPG123_NEW_FORMAT) {
-            fprintf(stderr, "%s", mpg123_plain_strerror(err));
-            break;
+    while (tb_poll_event(&ev)) {
+        switch (ev.type) {
+        case TB_EVENT_KEY:
+            if (ev.key == TB_KEY_CTRL_C) {
+                goto shutdown;
+            }
         }
-
-        portaudio_wait(portaudio);
     }
 
+ shutdown:
+
+    tb_shutdown();
     portaudio_close(portaudio);
-    stream_close(stream);
+    stream_close(portaudio->stream);
 
     return 0;
 }

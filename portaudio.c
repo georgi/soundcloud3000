@@ -4,6 +4,53 @@
 
 #include "soundcloud3000.h"
 
+int portaudio_write_from_stream(Portaudio *portaudio)
+{
+    int err = 0;
+    size_t done = 0;
+    unsigned char *buffer = (unsigned char*) portaudio->buffer;
+    size_t buffer_size = portaudio->size * sizeof(float);
+
+    memset(portaudio->buffer, 0, buffer_size);
+
+    if (portaudio->stream != NULL) {
+        err = mpg123_read(portaudio->stream->mpg123, buffer, buffer_size, &done);
+
+        if (err == MPG123_NEED_MORE) {
+            if (portaudio->stream->size - portaudio->stream->position > 4096) {
+                err = mpg123_decode(portaudio->stream->mpg123,
+                                    portaudio->stream->body + portaudio->stream->position,
+                                    portaudio->stream->size - portaudio->stream->position,
+                                    buffer,
+                                    buffer_size,
+                                    &done);
+            }
+        }
+
+        portaudio->stream->position += done;
+    }
+
+    return err;
+}
+
+static void *run_thread(void *ptr)
+{
+    Portaudio *portaudio = ptr;
+    
+    while (1) {
+        int err = portaudio_write_from_stream(portaudio);
+
+        if (err != MPG123_OK && err != MPG123_NEED_MORE && err != MPG123_NEW_FORMAT) {
+            fprintf(stderr, "%s", mpg123_plain_strerror(err));
+            break;
+        }
+
+        portaudio_wait(portaudio);
+    }
+
+    return NULL;
+}
+
 static int paCallback(const void *inputBuffer,
                       void *outputBuffer,
                       unsigned long framesPerBuffer,
@@ -29,6 +76,8 @@ Portaudio *portaudio_open_stream(int framesPerBuffer)
     PaError err;
     Portaudio *portaudio = (Portaudio *) malloc(sizeof(Portaudio));
 
+    portaudio->stream = NULL;
+    portaudio->thread = NULL;
     pthread_mutex_init(&portaudio->mutex, NULL);
     pthread_cond_init(&portaudio->cond, NULL);
 
@@ -36,7 +85,7 @@ Portaudio *portaudio_open_stream(int framesPerBuffer)
     portaudio->buffer = (float *) malloc(sizeof(float) * portaudio->size);
     memset(portaudio->buffer, 0, sizeof(float) * portaudio->size);
 
-    err = Pa_OpenDefaultStream(&portaudio->stream,
+    err = Pa_OpenDefaultStream(&portaudio->pa_stream,
                                0,           /* no input channels */
                                2,           /* stereo output */
                                paFloat32,   /* 32 bit floating point output */
@@ -59,52 +108,11 @@ void portaudio_wait(Portaudio *portaudio)
     pthread_cond_wait(&portaudio->cond, &portaudio->mutex);
 }
 
-float rms(float *v, int n)
-{
-    int i;
-    float sum = 0.0;
-
-    for (i = 0; i < n; i++) {
-        sum += v[i] * v[i];
-    }
-
-    return sqrt(sum / n);
-}
-
-int portaudio_write_from_stream(Portaudio *portaudio, Stream *stream)
-{
-    int err;
-    size_t done = 0;
-    unsigned char *buffer = (unsigned char*) portaudio->buffer;
-    size_t buffer_size = portaudio->size * sizeof(float);
-
-    memset(portaudio->buffer, 0, buffer_size);
-    
-    err = mpg123_read(stream->mpg123, buffer, buffer_size, &done);
-
-    if (err == MPG123_NEED_MORE) {
-        if (stream->size - stream->position > 4096) {
-            err = mpg123_decode(stream->mpg123,
-                                stream->body + stream->position,
-                                stream->size - stream->position,
-                                buffer,
-                                buffer_size,
-                                &done);
-        }
-    }
-
-    stream->position += done;
-
-    portaudio->rms = rms(portaudio->buffer, portaudio->size);
-
-    return err;
-}
-
 int portaudio_start(Portaudio *portaudio)
 {
-    int err = Pa_StartStream(portaudio->stream);
+    int err = Pa_StartStream(portaudio->pa_stream);
 
-    pthread_cond_broadcast(&portaudio->cond);
+    pthread_create(&portaudio->thread, NULL, run_thread, (void *) portaudio);
 
     if (err != paNoError) {
         fprintf(stderr, "%s", Pa_GetErrorText(err));
@@ -116,9 +124,7 @@ int portaudio_start(Portaudio *portaudio)
 
 int portaudio_stop(Portaudio *portaudio)
 {
-    int err = Pa_StopStream(portaudio->stream);
-
-    pthread_cond_broadcast(&portaudio->cond);
+    int err = Pa_StopStream(portaudio->pa_stream);
 
     if (err != paNoError) {
         fprintf(stderr, "%s", Pa_GetErrorText(err));
@@ -129,7 +135,7 @@ int portaudio_stop(Portaudio *portaudio)
 
 int portaudio_close(Portaudio *portaudio)
 {
-    int err = Pa_CloseStream(portaudio->stream);
+    int err = Pa_CloseStream(portaudio->pa_stream);
 
     pthread_cond_broadcast(&portaudio->cond);
 
@@ -139,6 +145,7 @@ int portaudio_close(Portaudio *portaudio)
 
     pthread_cond_destroy(&portaudio->cond);
     pthread_mutex_destroy(&portaudio->mutex);
+    pthread_kill(portaudio->thread, 9);
 
     if (portaudio->buffer) {
         free(portaudio->buffer);

@@ -78,8 +78,14 @@ Stream *stream_open(const char *url)
     return stream;
 }
 
+void stream_seek(Stream *stream, long position)
+{
+    stream->position = position < 0 ? 0 : (position > (long) stream->size ? stream->size : position);
+}
+
 void stream_close(Stream *stream)
 {
     mpg123_close(stream->mpg123);
     mpg123_delete(stream->mpg123);
+    pthread_kill(stream->thread, 9);
 }
