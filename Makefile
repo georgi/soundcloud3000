@@ -1,12 +1,22 @@
-LIBS := -ljansson -lcurl -lportaudio -lmpg123 
-LIBDIR := -Lmpg123/lib
-INCLUDE := -Impg123/include -Itermbox/src
-OBJECTS := termbox/build/src/libtermbox.a
+LIB := lib/libmpg123.la lib/libtermbox.a
 OUTPUT := soundcloud3000
+PWD := $(shell pwd)
+OBJ := api.o http.o main.o portaudio.o stream.o lib/libmpg123.a lib/libtermbox.a lib/libjansson.a
 
-build:
-	gcc *.c $(LIBS) $(OBJECTS) $(INCLUDE) $(LIBDIR) -o $(OUTPUT)
+build: $(LIB) $(OBJ)
+	gcc $(OBJ) -lportaudio -Llib -o $(OUTPUT)
 
-lib:
-	cd mpg123 && ./configure $(pwd) && make && make install
+%.o: %.c
+	gcc -g -Iinclude -c $< -o $@
 
+lib/libportaudio.a:
+	cd portaudio && ./configure --enable-static=yes --prefix=$(PWD) && make && make install
+
+lib/libjansson.a:
+	cd jansson && ./configure --enable-static=yes --prefix=$(PWD) && make && make install
+
+lib/libmpg123.a:
+	cd mpg123 && ./configure --enable-static=yes --prefix=$(PWD) && make && make install
+
+lib/libtermbox.a:
+	cd termbox && ./waf configure --prefix=$(PWD) && ./waf && ./waf install

@@ -7,27 +7,18 @@
 int portaudio_write_from_stream(Portaudio *portaudio)
 {
     int err = 0;
-    size_t done = 0;
-    unsigned char *buffer = (unsigned char*) portaudio->buffer;
-    size_t buffer_size = portaudio->size * sizeof(float);
+    Stream *stream = portaudio->stream;
 
-    memset(portaudio->buffer, 0, buffer_size);
+    if (stream != NULL && stream->response != NULL) {
+        size_t done;
+        mpg123_handle *mpg123 = stream->mpg123;
+        unsigned char * inmem = (unsigned char *)stream->response->body + stream->position;
+        size_t insize = stream->response->pos - stream->position;
 
-    if (portaudio->stream != NULL) {
-        err = mpg123_read(portaudio->stream->mpg123, buffer, buffer_size, &done);
-
-        if (err == MPG123_NEED_MORE) {
-            if (portaudio->stream->size - portaudio->stream->position > 4096) {
-                err = mpg123_decode(portaudio->stream->mpg123,
-                                    portaudio->stream->body + portaudio->stream->position,
-                                    portaudio->stream->size - portaudio->stream->position,
-                                    buffer,
-                                    buffer_size,
-                                    &done);
-            }
+        if (insize > 0) {
+            err = mpg123_decode(mpg123, inmem, insize, portaudio->buffer, portaudio->size, &done);
+            stream->position += done;
         }
-
-        portaudio->stream->position += done;
     }
 
     return err;
@@ -63,7 +54,7 @@ static int paCallback(const void *inputBuffer,
 
     pthread_mutex_lock(&portaudio->mutex);
 
-    memcpy(out, portaudio->buffer, sizeof(float) * portaudio->size);
+    memcpy(out, portaudio->buffer, portaudio->size);
 
     pthread_cond_broadcast(&portaudio->cond);
     pthread_mutex_unlock(&portaudio->mutex);
@@ -81,9 +72,9 @@ Portaudio *portaudio_open_stream(int framesPerBuffer)
     pthread_mutex_init(&portaudio->mutex, NULL);
     pthread_cond_init(&portaudio->cond, NULL);
 
-    portaudio->size = framesPerBuffer * 2;
-    portaudio->buffer = (float *) malloc(sizeof(float) * portaudio->size);
-    memset(portaudio->buffer, 0, sizeof(float) * portaudio->size);
+    portaudio->size = framesPerBuffer * 2 * sizeof(float);
+    portaudio->buffer = malloc(portaudio->size);
+    memset(portaudio->buffer, 0, portaudio->size);
 
     err = Pa_OpenDefaultStream(&portaudio->pa_stream,
                                0,           /* no input channels */
@@ -145,7 +136,7 @@ int portaudio_close(Portaudio *portaudio)
 
     pthread_cond_destroy(&portaudio->cond);
     pthread_mutex_destroy(&portaudio->mutex);
-    pthread_kill(portaudio->thread, 9);
+    pthread_cancel(portaudio->thread);
 
     if (portaudio->buffer) {
         free(portaudio->buffer);

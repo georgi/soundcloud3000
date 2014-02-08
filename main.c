@@ -12,23 +12,13 @@ int main() {
     api.host = "api.soundcloud.com";
     api.client_id = "344564835576cb4df3cad0e34fa2fe0a";
 
-    err = tb_init();
-
-    if (err) {
-        fprintf(stderr, "tb_init() failed with error code %d\n", err);
-        return 1;
-    }
-
-    tb_select_input_mode(TB_INPUT_ESC);
-    tb_clear();
-
     TrackList *tracks = api_recent_tracks(&api);
 
     if (tracks == NULL) {
         fprintf(stderr, "soundcloud api failed\n");
         return 1;
     }
-  
+
     mpg123_init();
     
     err = Pa_Initialize();
@@ -37,7 +27,7 @@ int main() {
         exit(1);
     }
 
-    Portaudio *portaudio = portaudio_open_stream(4096);
+    Portaudio *portaudio = portaudio_open_stream(1 << 15);
 
     if (portaudio == NULL) {
         fprintf(stderr, "portaudio_open_stream failed\n");
@@ -51,7 +41,11 @@ int main() {
 
     char url[4096];
 
-    sprintf(url, "%s?client_id=%s", tracks->tracks[0].stream_url, api.client_id);
+    for (int i = 0; i < 10; i++) {
+        if (tracks->tracks[i].stream_url != NULL) {
+            sprintf(url, "%s?client_id=%s", tracks->tracks[i].stream_url, api.client_id);
+        }
+    }
 
     portaudio->stream = stream_open(url);
 
@@ -60,14 +54,26 @@ int main() {
         exit(1);
     }
 
-    while (tb_poll_event(&ev)) {
-        switch (ev.type) {
-        case TB_EVENT_KEY:
-            if (ev.key == TB_KEY_CTRL_C) {
-                goto shutdown;
-            }
-        }
-    }
+    while (1) usleep(1000);
+
+    /* err = tb_init(); */
+
+    /* if (err) { */
+    /*     fprintf(stderr, "tb_init() failed with error code %d\n", err); */
+    /*     return 1; */
+    /* } */
+
+    /* tb_select_input_mode(TB_INPUT_ESC); */
+    /* tb_clear(); */
+
+    /* while (tb_poll_event(&ev)) { */
+    /*     switch (ev.type) { */
+    /*     case TB_EVENT_KEY: */
+    /*         if (ev.key == TB_KEY_CTRL_C) { */
+    /*             goto shutdown; */
+    /*         } */
+    /*     } */
+    /* } */
 
  shutdown:
 

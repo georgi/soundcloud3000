@@ -1,3 +1,12 @@
 [submodule "termbox"]
 	path = termbox
 	url = git@github.com:nsf/termbox.git
+[submodule "mpg123"]
+	path = mpg123
+	url = git@github.com:georgi/mpg123.git
+[submodule "jansson"]
+	path = jansson
+	url = git@github.com:georgi/jansson.git
+[submodule "portaudio"]
+	path = portaudio
+	url = git@github.com:georgi/portaudio.git

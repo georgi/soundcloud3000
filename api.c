@@ -8,27 +8,26 @@
 TrackList *api_recent_tracks(Api *api) {
     json_t *root;
     json_error_t error;
-    char url[BUFSIZE];
+    char path[BUFSIZE];
     Track *track;
 
-    int n = snprintf(url, BUFSIZE, "https://%s/tracks.json?client_id=%s", api->host, api->client_id);
+    int n = snprintf(path, BUFSIZE, "/tracks.json?client_id=%s", api->client_id);
 
     if (n < 0 || n > BUFSIZE) {
         fprintf(stderr, "url formatting failed: %d\n", n);
         return NULL;
     }
 
-    Response *response = http_request(url);
+    Response *response = http_request(api->host, path);
 
-    if (response == NULL) {
+    if (http_read(response) < 0) {
         fprintf(stderr, "http request failed\n");
         return NULL;
     }
 
     root = json_loads(response->body, 0, &error);
 
-    free(response->body);
-    free(response);
+    free_response(response);
 
     if (root == NULL) {
         fprintf(stderr, "json parse error: on line %d: %s\n", error.line, error.text);
