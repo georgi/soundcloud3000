@@ -136,8 +136,8 @@ int http_read_body(Response *response)
 {
     int count = 0;
 
-    response->body = malloc(response->content_length);
-    memset(response->body, 0, response->content_length);
+    response->body = malloc(response->content_length + 1);
+    memset(response->body, 0, response->content_length + 1);
 
     char *p = response->body;
 
