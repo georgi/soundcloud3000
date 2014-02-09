@@ -1,10 +1,10 @@
 LIB := lib/libmpg123.la lib/libtermbox.a
 OUTPUT := soundcloud3000
 PWD := $(shell pwd)
-OBJ := api.o http.o main.o portaudio.o stream.o lib/libmpg123.a lib/libtermbox.a lib/libjansson.a
+OBJ := api.o http.o main.o stream.o lib/libmpg123.a lib/libtermbox.a lib/libjansson.a
 
 build: $(LIB) $(OBJ)
-	gcc $(OBJ) -lportaudio -Llib -o $(OUTPUT)
+	gcc -lportaudio $(OBJ) -Llib -o $(OUTPUT)
 
 %.o: %.c
 	gcc -g -Iinclude -c $< -o $@

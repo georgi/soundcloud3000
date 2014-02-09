@@ -63,6 +63,37 @@ Response *http_request_url(const char *url)
     return http_request(host, path);
 }
 
+static int http_read_headers(Response *response)
+{
+    int newline = 0; 
+    int fd = response->fd;
+    char *p = response->headers;
+    char content_length[4096];
+
+    while (read(fd, p, 1) > 0) {
+        if (*p == '\n') {
+            if (newline == 1) {
+                break;
+            }
+            newline = 1;
+        } else if (*p != '\r') {
+            newline = 0;
+        }
+        p += 1;
+    }
+
+    if (sscanf(response->headers, "HTTP/1.0 %d", &response->status) != 1) {
+        fprintf(stderr, "could not parse status\n");
+        return -1;
+    }
+
+    http_header(response, "Content-Length", content_length);
+
+    response->content_length += atoi(content_length);
+
+    return 0;
+}
+
 Response *http_request(const char *host, const char *path)
 {
 #define BUFSIZE 4096
@@ -71,7 +102,7 @@ Response *http_request(const char *host, const char *path)
   
     Response *response = malloc(sizeof(Response));
     response->status = 0;
-    response->size = BUFSIZE;
+    response->content_length = 0;
     response->headers = malloc(1 << 16);
     response->pos = 0;
     response->body = NULL;
@@ -88,6 +119,8 @@ Response *http_request(const char *host, const char *path)
 
     write(response->fd, sendline, BUFSIZE);
 
+    http_read_headers(response);
+
     return response;
 }
 
@@ -98,40 +131,22 @@ void free_response(Response *response)
     free(response);
 }
 
-int http_read(Response *response)
+        
+int http_read_body(Response *response)
 {
     int count = 0;
-    char *p = response->headers;
 
-    while ((count = read(response->fd, p, BUFSIZE)) > 0) {
-        char *end;
+    response->body = malloc(response->content_length);
+    memset(response->body, 0, response->content_length);
 
-        p += count;
+    char *p = response->body;
 
-        if ((end = strstr(response->headers, "\r\n\r\n")) != NULL) {
-            char content_length[4096];
-            http_header(response, "Content-Length", content_length);
-            response->size += atoi(content_length);
-            response->body = malloc(response->size);
-            memset(response->body, 0, response->size);
-            strcpy(response->body, end + 4);
-            response->pos = p - end - 4;
-            *end = 0;
-            break;
-        }
-    }
-
-    p = response->body + response->pos;
-
-    while ((count = read(response->fd, p, BUFSIZE)) > 0) {
+    while ((count = read(response->fd, p, 4096)) > 0) {
         response->pos += count;
         p += count;
     }
 
-    if (sscanf(response->headers, "HTTP/1.0 %d", &response->status) != 1) {
-        fprintf(stderr, "could not parse status\n");
-        return -1;
-    }
+    close(response->fd);
 
-    return 0;
+    return count;
 }
