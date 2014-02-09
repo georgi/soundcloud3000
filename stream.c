@@ -41,8 +41,6 @@ static void *run_thread(void *ptr)
     
     free_response(response);
 
-    Pa_StartStream(stream->pa_stream);
-
     return NULL;
 }
 
@@ -50,7 +48,6 @@ Stream *stream_open(const char *url)
 {
     int err;
     Stream *stream = malloc(sizeof(Stream));
-    int frames_per_buffer = 512;
 
     stream->url = url;
 
@@ -61,27 +58,38 @@ Stream *stream_open(const char *url)
         return NULL;
     }
     
-    mpg123_param(stream->mpg123, MPG123_VERBOSE, 2, 0);
+    /* mpg123_param(stream->mpg123, MPG123_VERBOSE, 2, 0); */
     mpg123_param(stream->mpg123, MPG123_ADD_FLAGS, MPG123_FORCE_FLOAT, 0.);
-
-    err = Pa_OpenDefaultStream(&stream->pa_stream,
-                               0,           /* no input channels */
-                               2,           /* stereo output */
-                               paFloat32,   /* 32 bit floating point output */
-                               44100,       /* sample rate*/
-                               frames_per_buffer,
-                               portaudio_callback,
-                               (void*) stream);
-
-    if (err != paNoError) {
-        fprintf(stderr, "%s", Pa_GetErrorText(err));
-        stream_close(stream);
-        return NULL;
-    }
 
     pthread_create(&stream->thread, NULL, run_thread, (void *) stream);
     
     return stream;
+}
+
+int stream_start(Stream *stream)
+{
+    int err = Pa_OpenDefaultStream(&stream->pa_stream,
+                                   0,           /* no input channels */
+                                   2,           /* stereo output */
+                                   paFloat32,   /* 32 bit floating point output */
+                                   44100,       /* sample rate*/
+                                   512,         /* frames_per_buffer */
+                                   portaudio_callback,
+                                   (void*) stream);
+
+    if (err != paNoError) {
+        fprintf(stderr, "%s", Pa_GetErrorText(err));
+        return err;
+    }
+
+    err = Pa_StartStream(stream->pa_stream);
+
+    if (err != paNoError) {
+        fprintf(stderr, "%s", Pa_GetErrorText(err));
+        return err;
+    }
+
+    return 0;
 }
 
 int stream_read(Stream *stream, void *buffer, size_t buffer_size)
@@ -91,11 +99,25 @@ int stream_read(Stream *stream, void *buffer, size_t buffer_size)
 
     err = mpg123_read(stream->mpg123, buffer, buffer_size, &done);
 
-    if (err != MPG123_OK && err != MPG123_NEW_FORMAT) {
-        fprintf(stderr, "%s", mpg123_plain_strerror(err));
+    if (err == MPG123_DONE) {
+        Pa_StopStream(stream->pa_stream);
+    }
+
+    if (err != MPG123_OK) {
+        memset(buffer, 0, buffer_size);
     }
 
     return err;
+}
+
+int stream_is_active(Stream *stream)
+{
+    return Pa_IsStreamActive(stream->pa_stream);
+}
+
+int stream_stop(Stream *stream)
+{
+    return Pa_StopStream(stream->pa_stream);
 }
 
 void stream_close(Stream *stream)

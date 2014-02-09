@@ -3,13 +3,26 @@
 
 #include "soundcloud3000.h"
 
-void read_track(Track *track, json_t *data)
+static void read_track(Track *track, json_t *data)
 {
         track->id         = json_integer_value(json_object_get(data, "id"));
         track->duration   = json_integer_value(json_object_get(data, "duration"));
         track->title      = json_string_value(json_object_get(data, "title"));
         track->created_at = json_string_value(json_object_get(data, "created_at"));
         track->stream_url = json_string_value(json_object_get(data, "stream_url"));
+}
+
+static TrackList *read_track_list(json_t *data)
+{
+    TrackList *list = malloc(sizeof(TrackList));
+    list->count = json_array_size(data);
+    list->tracks = malloc(sizeof(Track) * list->count);
+
+    for (int i = 0; i < list->count; i++) {
+        read_track(&list->tracks[i], json_array_get(data, i));
+    }
+
+    return list;
 }
 
 json_t *request_json(Api *api, char *path)
@@ -34,6 +47,14 @@ json_t *request_json(Api *api, char *path)
     return root;
 }
 
+TrackList *api_user_tracks(Api *api, char *permalink) {
+    char path[4096];
+
+    sprintf(path, "/users/%s/tracks.json?client_id=%s", permalink, api->client_id);
+    
+    return read_track_list(request_json(api, path));
+}
+
 Track *api_get_track(Api *api, int id) {
     char path[4096];
     Track *track = malloc(sizeof(Track));
@@ -52,15 +73,5 @@ TrackList *api_recent_tracks(Api *api) {
 
     sprintf(path, "/tracks.json?client_id=%s", api->client_id);
     
-    json_t *root = request_json(api, path);
-
-    TrackList *list = malloc(sizeof(TrackList));
-    list->count = json_array_size(root);
-    list->tracks = malloc(sizeof(Track) * list->count);
-
-    for (int i = 0; i < list->count; i++) {
-        read_track(&list->tracks[i], json_array_get(root, i));
-    }
-
-    return list;
+    return read_track_list(request_json(api, path));
 }

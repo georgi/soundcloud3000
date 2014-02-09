@@ -49,6 +49,7 @@ void free_response(Response *response);
 
 TrackList *api_recent_tracks(Api *api);
 Track *api_get_track(Api *api, int id);
+TrackList *api_user_tracks(Api *api, char *permalink);
 
 PaStream *portaudio_open_stream(int frames_per_bufffer, Stream *stream);
 
@@ -56,3 +57,6 @@ Stream *stream_open(const char *url);
 void stream_seek(Stream *stream, long position);
 void stream_close(Stream *stream);
 int stream_read(Stream *stream, void *buffer, size_t buffer_size);
+int stream_start(Stream *stream);
+int stream_stop(Stream *stream);
+int stream_is_active(Stream *stream);

@@ -110,6 +110,8 @@ Response *http_request(const char *host, const char *path)
 
     memset(response->headers, 0, 1 << 16);
 
+    fprintf(stderr, "%s%s", host, path);
+
     if (response->fd < 0) {
         free_response(response);
         return NULL;

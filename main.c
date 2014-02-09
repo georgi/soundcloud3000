@@ -4,70 +4,91 @@
 #include "termbox/src/termbox.h"
 #include "soundcloud3000.h"
 
-int main() {
-    int err;
+int main(int argc, char *argv[]) {
     Api api;
-    struct tb_event ev;
-
     api.host = "api.soundcloud.com";
     api.client_id = "344564835576cb4df3cad0e34fa2fe0a";
+    
+    if (argc != 2) {
+        printf("usage: soundcloud3000 <url>\n");
+        exit(1);
+    }
 
-    Track *track = api_get_track(&api, 131539027);
+    TrackList *list = api_user_tracks(&api, argv[1]);
 
-    if (track == NULL) {
+    if (list == NULL) {
         fprintf(stderr, "soundcloud api failed\n");
         return 1;
     }
 
     mpg123_init();
     
-    err = Pa_Initialize();
+    int err = Pa_Initialize();
+
     if (err != paNoError) {
         fprintf(stderr, "%s", Pa_GetErrorText(err));
         exit(1);
     }
 
-    char url[4096];
+    for (int i = 0; i < list->count; i++) {
+        char url[4096];
 
-    sprintf(url, "%s?client_id=%s", track->stream_url, api.client_id);
+        sprintf(url, "%s?client_id=%s", list->tracks[i].stream_url, api.client_id);
 
-    Stream *stream = stream_open(url);
+        Stream *stream = stream_open(url);
 
-    if (stream == NULL) {
-        fprintf(stderr, "stream_open failed\n");
-        exit(1);
-    }
+        if (stream == NULL) {
+            fprintf(stderr, "stream_open failed\n");
+            exit(1);
+        }
 
-    err = tb_init();
+        stream_start(stream);
 
-    if (err) {
-        fprintf(stderr, "tb_init() failed with error code %d\n", err);
-        return 1;
-    }
+        err = tb_init();
 
-    tb_select_input_mode(TB_INPUT_ESC);
-    tb_clear();
+        if (err) {
+            fprintf(stderr, "tb_init() failed with error code %d\n", err);
+            return 1;
+        }
 
-    while (tb_poll_event(&ev)) {
-        switch (ev.type) {
-        case TB_EVENT_KEY:
-            switch (ev.key) {
-            case TB_KEY_ARROW_RIGHT:
-                mpg123_seek(stream->mpg123, 44100 * 1, SEEK_CUR);
-                break;
-            case TB_KEY_ARROW_LEFT:
-                mpg123_seek(stream->mpg123, -44100 * 1, SEEK_CUR);
-                break;
-            case TB_KEY_CTRL_C:
-                goto shutdown;
+        struct tb_event ev;
+        tb_select_input_mode(TB_INPUT_ESC);
+        tb_clear();
+
+        while (1) {
+            if (!stream_is_active(stream)) {
+                goto next_track;
+            }
+            if (tb_peek_event(&ev, 10) > 0) {
+                switch (ev.type) {
+                case TB_EVENT_KEY:
+                    switch (ev.key) {
+                    case TB_KEY_ARROW_DOWN:
+                        goto next_track;
+                    case TB_KEY_ARROW_UP:
+                        if (i > 0) {
+                            i -= 2;
+                            goto next_track;
+                        }
+                    case TB_KEY_ARROW_RIGHT:
+                        mpg123_seek(stream->mpg123, 44100 * 1, SEEK_CUR);
+                        break;
+                    case TB_KEY_ARROW_LEFT:
+                        mpg123_seek(stream->mpg123, -44100 * 1, SEEK_CUR);
+                        break;
+                    case TB_KEY_CTRL_C:
+                        goto shutdown;
+                    }
+                }
             }
         }
+    next_track:
+        stream_stop(stream);
     }
 
  shutdown:
 
     tb_shutdown();
-    stream_close(stream);
 
     return 0;
 }
