@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
             tb_present();
             
-            if (tb_peek_event(&ev, 1) > 0) {
+            if (tb_peek_event(&ev, 100) > 0) {
                 switch (ev.type) {
                 case TB_EVENT_KEY:
                     switch (ev.key) {
