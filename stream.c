@@ -58,7 +58,7 @@ Stream *stream_open(const char *url)
         return NULL;
     }
     
-    /* mpg123_param(stream->mpg123, MPG123_VERBOSE, 2, 0); */
+    mpg123_param(stream->mpg123, MPG123_VERBOSE, 0, 0);
     mpg123_param(stream->mpg123, MPG123_ADD_FLAGS, MPG123_FORCE_FLOAT, 0.);
 
     pthread_create(&stream->thread, NULL, run_thread, (void *) stream);
@@ -109,6 +109,12 @@ int stream_read(Stream *stream, void *buffer, size_t buffer_size)
 
     return err;
 }
+
+int stream_length(Stream *stream)
+{
+    return mpg123_length(stream->mpg123);
+}
+
 
 int stream_is_active(Stream *stream)
 {

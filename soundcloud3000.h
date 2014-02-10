@@ -24,7 +24,10 @@ typedef struct Response {
 typedef struct Track {
     int id;
     int duration;
+    int playback_count;
     const char *title;
+    const char *username;
+    const char *genre;
     const char *created_at;
     const char *stream_url;
 } Track;
@@ -60,3 +63,4 @@ int stream_read(Stream *stream, void *buffer, size_t buffer_size);
 int stream_start(Stream *stream);
 int stream_stop(Stream *stream);
 int stream_is_active(Stream *stream);
+int stream_length(Stream *stream);

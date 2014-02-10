@@ -4,6 +4,33 @@
 #include "termbox/src/termbox.h"
 #include "soundcloud3000.h"
 
+void display_string(int fg, int bg, const char *p, int x, int y, int len)
+{
+    struct tb_cell cell;
+    cell.bg = bg;
+    cell.fg = fg;
+
+    int max_x = x + len;
+
+    for (; *p != 0; p++, x++) {
+        tb_utf8_char_to_unicode(&cell.ch, p);
+        tb_put_cell(x, y, &cell);
+    }
+
+    for (; x < max_x; x++) {
+        tb_utf8_char_to_unicode(&cell.ch, " ");
+        tb_put_cell(x, y, &cell);
+    }
+}
+
+void display_track(Track *track, int y, int is_current)
+{
+    int bg = is_current ? TB_WHITE : TB_BLACK;
+    display_string(TB_BLUE, bg, track->title, 0, y, 60);
+    display_string(TB_CYAN, bg, track->username, 60, y, 20);
+    display_string(TB_GREEN, bg, track->created_at, 80, y, 20);
+}
+
 int main(int argc, char *argv[]) {
     Api api;
     api.host = "api.soundcloud.com";
@@ -56,10 +83,12 @@ int main(int argc, char *argv[]) {
         tb_clear();
 
         while (1) {
-            if (!stream_is_active(stream)) {
-                goto next_track;
-            }
-            if (tb_peek_event(&ev, 10) > 0) {
+            for (int y = 0; y < list->count; y++)
+                display_track(&list->tracks[y], y, y == i);
+
+            tb_present();
+            
+            if (tb_peek_event(&ev, 1) > 0) {
                 switch (ev.type) {
                 case TB_EVENT_KEY:
                     switch (ev.key) {
@@ -80,6 +109,10 @@ int main(int argc, char *argv[]) {
                         goto shutdown;
                     }
                 }
+            }
+
+            if (!stream_is_active(stream)) {
+                goto next_track;
             }
         }
     next_track:
