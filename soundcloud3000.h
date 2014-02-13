@@ -21,6 +21,14 @@ typedef struct Response {
     size_t content_length;
 } Response;
 
+typedef struct Request {
+    unsigned int method;
+    char *url;
+    char *body;
+    int complete;
+    size_t content_length;
+} Request;
+
 typedef struct Track {
     int id;
     int duration;
@@ -54,7 +62,8 @@ TrackList *api_recent_tracks(Api *api);
 Track *api_get_track(Api *api, int id);
 TrackList *api_user_tracks(Api *api, char *permalink);
 
-PaStream *portaudio_open_stream(int frames_per_bufffer, Stream *stream);
+
+void audio_init();
 
 Stream *stream_open(const char *url);
 void stream_seek(Stream *stream, long position);

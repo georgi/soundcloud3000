@@ -4,6 +4,18 @@
 
 #include "soundcloud3000.h"
 
+void audio_init()
+{
+    mpg123_init();
+    
+    int err = Pa_Initialize();
+
+    if (err != paNoError) {
+        fprintf(stderr, "%s", Pa_GetErrorText(err));
+        exit(1);
+    }
+}
+
 static int portaudio_callback(const void *input_buffer,
                               void *output_buffer,
                               unsigned long frames_per_buffer,

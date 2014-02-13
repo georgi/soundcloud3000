@@ -41,20 +41,24 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    audio_init();
+
+    int err = tb_init();
+
+    if (err) {
+        fprintf(stderr, "tb_init() failed with error code %d\n", err);
+        return 1;
+    }
+
+    struct tb_event ev;
+    tb_select_input_mode(TB_INPUT_ESC);
+    tb_clear();
+
     TrackList *list = api_user_tracks(&api, argv[1]);
 
     if (list == NULL) {
         fprintf(stderr, "soundcloud api failed\n");
         return 1;
-    }
-
-    mpg123_init();
-    
-    int err = Pa_Initialize();
-
-    if (err != paNoError) {
-        fprintf(stderr, "%s", Pa_GetErrorText(err));
-        exit(1);
     }
 
     for (int i = 0; i < list->count; i++) {
@@ -70,17 +74,6 @@ int main(int argc, char *argv[]) {
         }
 
         stream_start(stream);
-
-        err = tb_init();
-
-        if (err) {
-            fprintf(stderr, "tb_init() failed with error code %d\n", err);
-            return 1;
-        }
-
-        struct tb_event ev;
-        tb_select_input_mode(TB_INPUT_ESC);
-        tb_clear();
 
         while (1) {
             for (int y = 0; y < list->count; y++)
