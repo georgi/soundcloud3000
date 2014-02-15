@@ -2,34 +2,12 @@
 #include <portaudio.h>
 #include <mpg123.h>
 
-typedef struct Api {
+typedef struct api {
     const char *host;
     const char *client_id;
-} Api;
+} api;
 
-typedef struct Header {
-    char *name;
-    char *value;
-} Header;
-
-typedef struct Response {
-    int fd;
-    int status;
-    char *headers;
-    char *body;
-    size_t pos;
-    size_t content_length;
-} Response;
-
-typedef struct Request {
-    unsigned int method;
-    char *url;
-    char *body;
-    int complete;
-    size_t content_length;
-} Request;
-
-typedef struct Track {
+typedef struct track {
     int id;
     int duration;
     int playback_count;
@@ -38,38 +16,31 @@ typedef struct Track {
     const char *genre;
     const char *created_at;
     const char *stream_url;
-} Track;
+} track;
 
-typedef struct TrackList {
-    Track *tracks;
+typedef struct track_list {
+    track *tracks;
     int count;
-} TrackList;
+} track_list;
 
-typedef struct Stream {
+typedef struct stream {
     mpg123_handle *mpg123;
     PaStream *pa_stream;
     const char *url;
     pthread_t thread;
-} Stream;
+} stream;
 
-Response *http_request(const char *host, const char *path);
-Response *http_request_url(const char *url);
-int http_header(Response *response, const char *key, char *value);
-int http_read_body(Response *response);
-void free_response(Response *response);
-
-TrackList *api_recent_tracks(Api *api);
-Track *api_get_track(Api *api, int id);
-TrackList *api_user_tracks(Api *api, char *permalink);
-
+track_list *api_recent_tracks(api *api);
+track *api_get_track(api *api, int id);
+track_list *api_user_tracks(api *api, const char *permalink);
 
 void audio_init();
 
-Stream *stream_open(const char *url);
-void stream_seek(Stream *stream, long position);
-void stream_close(Stream *stream);
-int stream_read(Stream *stream, void *buffer, size_t buffer_size);
-int stream_start(Stream *stream);
-int stream_stop(Stream *stream);
-int stream_is_active(Stream *stream);
-int stream_length(Stream *stream);
+stream *stream_open(const char *url);
+void stream_seek(stream *stream, long position);
+void stream_close(stream *stream);
+int stream_read(stream *stream, void *buffer, size_t buffer_size);
+int stream_start(stream *stream);
+int stream_stop(stream *stream);
+int stream_is_active(stream *stream);
+int stream_length(stream *stream);

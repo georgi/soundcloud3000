@@ -1,25 +1,32 @@
 #include <stdio.h>
+#include <string.h>
 #include <jansson.h>
+
+#include "hitpoint/hitpoint.h"
+#include "http-parser/http_parser.h"
+#include "sds/sds.h"
 
 #include "soundcloud3000.h"
 
-static void read_track(Track *track, json_t *data)
+static void read_track(track *track, json_t *data)
 {
-        track->id             = json_integer_value(json_object_get(data, "id"));
-        track->duration       = json_integer_value(json_object_get(data, "duration"));
-        track->genre          = json_string_value(json_object_get(data, "genre"));
-        track->username       = json_string_value(json_object_get(json_object_get(data, "user"), "username"));
-        track->playback_count = json_integer_value(json_object_get(data, "playback_count"));
-        track->title          = json_string_value(json_object_get(data, "title"));
-        track->created_at     = json_string_value(json_object_get(data, "created_at"));
-        track->stream_url     = json_string_value(json_object_get(data, "stream_url"));
+    track->id             = json_integer_value(json_object_get(data, "id"));
+    track->duration       = json_integer_value(json_object_get(data, "duration"));
+    track->genre          = json_string_value(json_object_get(data, "genre"));
+    track->username       = json_string_value(json_object_get(json_object_get(data, "user"), "username"));
+    track->playback_count = json_integer_value(json_object_get(data, "playback_count"));
+    track->title          = json_string_value(json_object_get(data, "title"));
+    track->created_at     = json_string_value(json_object_get(data, "created_at"));
+    track->stream_url     = json_string_value(json_object_get(data, "stream_url"));
 }
 
-static TrackList *read_track_list(json_t *data)
+static track_list *read_track_list(json_t *data)
 {
-    TrackList *list = malloc(sizeof(TrackList));
+    track_list *list = malloc(sizeof(track_list));
+    memset(list, 0, sizeof(track_list));
+    
     list->count = json_array_size(data);
-    list->tracks = malloc(sizeof(Track) * list->count);
+    list->tracks = malloc(sizeof(track) * list->count);
 
     for (int i = 0; i < list->count; i++) {
         read_track(&list->tracks[i], json_array_get(data, i));
@@ -28,10 +35,16 @@ static TrackList *read_track_list(json_t *data)
     return list;
 }
 
-json_t *request_json(Api *api, char *path)
+json_t *request_json(api *api, const char *path)
 {
     json_error_t error;
-    Response *response = http_request(api->host, path);
+    
+    request *request = http_new_request(HTTP_GET);
+    request->host = api->host;
+    request->path = path;
+    request->port = 80;
+    
+    response *response = http_send(request);
 
     if (http_read_body(response) < 0) {
         fprintf(stderr, "http request failed\n");
@@ -50,31 +63,35 @@ json_t *request_json(Api *api, char *path)
     return root;
 }
 
-TrackList *api_user_tracks(Api *api, char *permalink) {
-    char path[4096];
-
-    sprintf(path, "/users/%s/tracks.json?client_id=%s", permalink, api->client_id);
+track_list *api_user_tracks(api *api, const char *permalink) {
+    sds path = sdscatprintf(sdsempty(), "/users/%s/tracks.json?client_id=%s", permalink, api->client_id);
     
-    return read_track_list(request_json(api, path));
+    track_list *list = read_track_list(request_json(api, path));
+
+    sdsfree(path);
+
+    return list;
 }
 
-Track *api_get_track(Api *api, int id) {
-    char path[4096];
-    Track *track = malloc(sizeof(Track));
-
-    sprintf(path, "/tracks/%d.json?client_id=%s", id, api->client_id);
+track *api_get_track(api *api, int id) {
+    track *track = malloc(sizeof(track));
+    sds path = sdscatprintf(sdsempty(), "/tracks/%d.json?client_id=%s", id, api->client_id);
     
     json_t *root = request_json(api, path);
 
     read_track(track, root);
+
+    sdsfree(path);
     
     return track;
 }
 
-TrackList *api_recent_tracks(Api *api) {
-    char path[4096];
-
-    sprintf(path, "/tracks.json?client_id=%s", api->client_id);
+track_list *api_recent_tracks(api *api) {
+    sds path = sdscatprintf(sdsempty(), "/tracks.json?client_id=%s", api->client_id);
     
-    return read_track_list(request_json(api, path));
+    track_list *list = read_track_list(request_json(api, path));
+
+    sdsfree(path);
+
+    return list;
 }

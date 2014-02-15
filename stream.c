@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "hitpoint/hitpoint.h"
+#include "sds/sds.h"
 #include "soundcloud3000.h"
 
 void audio_init()
@@ -23,43 +25,37 @@ static int portaudio_callback(const void *input_buffer,
                               PaStreamCallbackFlags status_flags,
                               void *user_data )
 {
-    Stream *stream = user_data;
+    stream *stream = user_data;
     stream_read(stream, output_buffer, sizeof(float) * frames_per_buffer * 2);
     return 0;
 }
 
-static void *run_thread(void *ptr)
+static response *resolve_stream(const char *url)
 {
-    Stream *stream = ptr;
-    char stream_url[4096];
-    
-    Response *response = http_request_url(stream->url);
+    request *request = http_get(url);
+    response *response = http_send(request);
 
     if (http_read_body(response) < 0 && response->status != 302) {
-        fprintf(stderr, "request failed %s", stream->url); 
+        fprintf(stderr, "request failed %s", url); 
         return NULL;
     }
+
+    sds stream_url = sdsnew(http_header(response, "Location"));
 
     free_response(response);
 
-    if (http_header(response, "Location", stream_url) < 0) {
-        fprintf(stderr, "expected redirect %s", stream->url); 
-        return NULL;
-    }
-
-    response = http_request_url(stream_url);
-
-    mpg123_open_fd(stream->mpg123, response->fd);
+    request = http_get(stream_url);
+    response = http_send(request);
     
-    free_response(response);
+    sdsfree(stream_url);
 
-    return NULL;
+    return response;
 }
 
-Stream *stream_open(const char *url)
+stream *stream_open(const char *url)
 {
     int err;
-    Stream *stream = malloc(sizeof(Stream));
+    stream *stream = malloc(sizeof(stream));
 
     stream->url = url;
 
@@ -73,12 +69,16 @@ Stream *stream_open(const char *url)
     mpg123_param(stream->mpg123, MPG123_VERBOSE, 0, 0);
     mpg123_param(stream->mpg123, MPG123_ADD_FLAGS, MPG123_FORCE_FLOAT, 0.);
 
-    pthread_create(&stream->thread, NULL, run_thread, (void *) stream);
+    response *response = resolve_stream(url);
+
+    mpg123_open_fd(stream->mpg123, response->fd);
+
+    free_response(response);
     
     return stream;
 }
 
-int stream_start(Stream *stream)
+int stream_start(stream *stream)
 {
     int err = Pa_OpenDefaultStream(&stream->pa_stream,
                                    0,           /* no input channels */
@@ -104,7 +104,7 @@ int stream_start(Stream *stream)
     return 0;
 }
 
-int stream_read(Stream *stream, void *buffer, size_t buffer_size)
+int stream_read(stream *stream, void *buffer, size_t buffer_size)
 {
     size_t done;
     int err = 0;
@@ -122,23 +122,23 @@ int stream_read(Stream *stream, void *buffer, size_t buffer_size)
     return err;
 }
 
-int stream_length(Stream *stream)
+int stream_length(stream *stream)
 {
     return mpg123_length(stream->mpg123);
 }
 
 
-int stream_is_active(Stream *stream)
+int stream_is_active(stream *stream)
 {
     return Pa_IsStreamActive(stream->pa_stream);
 }
 
-int stream_stop(Stream *stream)
+int stream_stop(stream *stream)
 {
     return Pa_StopStream(stream->pa_stream);
 }
 
-void stream_close(Stream *stream)
+void stream_close(stream *stream)
 {
     mpg123_close(stream->mpg123);
     mpg123_delete(stream->mpg123);

@@ -10,3 +10,15 @@
 [submodule "portaudio"]
 	path = portaudio
 	url = git@github.com:georgi/portaudio.git
+[submodule "sds"]
+	path = sds
+	url = git@github.com:antirez/sds.git
+[submodule "http-parser"]
+	path = http-parser
+	url = git@github.com:joyent/http-parser.git
+[submodule "hitpoint"]
+	path = hitpoint
+	url = git@github.com:georgi/hitpoint
+[submodule "hitman"]
+	path = hitman
+	url = git@github.com:georgi/hitman
