@@ -3,10 +3,7 @@ OUTPUT := soundcloud3000
 PWD := $(shell pwd)
 OBJ := api.o main.o stream.o lib/libmpg123.a lib/libtermbox.a lib/libjansson.a http-parser/libhttp_parser.o sds/sds.o hitpoint/hitpoint.o hitman/hitman.o
 
-server: http-parser/libhttp_parser.o server.c
-	gcc -g -Wall -lportaudio server.c -Llib -o server
-
-build: $(LIB) $(OBJ)
+soundcloud3000: $(LIB) $(OBJ)
 	gcc -lportaudio $(OBJ) -Llib -o $(OUTPUT)
 
 %.o: %.c

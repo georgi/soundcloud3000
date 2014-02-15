@@ -35,7 +35,7 @@ static track_list *read_track_list(json_t *data)
     return list;
 }
 
-json_t *request_json(api *api, const char *path)
+json_t *request_json(api_config *api, const char *path)
 {
     json_error_t error;
     
@@ -63,7 +63,7 @@ json_t *request_json(api *api, const char *path)
     return root;
 }
 
-track_list *api_user_tracks(api *api, const char *permalink) {
+track_list *api_user_tracks(api_config *api, const char *permalink) {
     sds path = sdscatprintf(sdsempty(), "/users/%s/tracks.json?client_id=%s", permalink, api->client_id);
     
     track_list *list = read_track_list(request_json(api, path));
@@ -73,7 +73,7 @@ track_list *api_user_tracks(api *api, const char *permalink) {
     return list;
 }
 
-track *api_get_track(api *api, int id) {
+track *api_get_track(api_config *api, int id) {
     track *track = malloc(sizeof(track));
     sds path = sdscatprintf(sdsempty(), "/tracks/%d.json?client_id=%s", id, api->client_id);
     
@@ -86,7 +86,7 @@ track *api_get_track(api *api, int id) {
     return track;
 }
 
-track_list *api_recent_tracks(api *api) {
+track_list *api_recent_tracks(api_config *api) {
     sds path = sdscatprintf(sdsempty(), "/tracks.json?client_id=%s", api->client_id);
     
     track_list *list = read_track_list(request_json(api, path));

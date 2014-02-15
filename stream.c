@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "hitpoint/hitpoint.h"
 #include "sds/sds.h"
@@ -57,7 +58,7 @@ stream *stream_open(const char *url)
     int err;
     stream *stream = malloc(sizeof(stream));
 
-    stream->url = url;
+    stream->url = sdsnew(url);
 
     fprintf(stderr, "stream_open: %s\n", url);
 
@@ -70,6 +71,7 @@ stream *stream_open(const char *url)
     mpg123_param(stream->mpg123, MPG123_ADD_FLAGS, MPG123_FORCE_FLOAT, 0.);
 
     response *response = resolve_stream(url);
+    stream->fd = response->fd;
 
     mpg123_open_fd(stream->mpg123, response->fd);
 
@@ -85,7 +87,7 @@ int stream_start(stream *stream)
                                    2,           /* stereo output */
                                    paFloat32,   /* 32 bit floating point output */
                                    44100,       /* sample rate*/
-                                   512,         /* frames_per_buffer */
+                                   64,         /* frames_per_buffer */
                                    portaudio_callback,
                                    (void*) stream);
 
@@ -143,8 +145,9 @@ void stream_close(stream *stream)
     mpg123_close(stream->mpg123);
     mpg123_delete(stream->mpg123);
     Pa_CloseStream(stream->pa_stream);
-
     pthread_cancel(stream->thread);
+    sdsfree(stream->url);
+    close(stream->fd);
 
     free(stream);
 }

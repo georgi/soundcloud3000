@@ -2,10 +2,10 @@
 #include <portaudio.h>
 #include <mpg123.h>
 
-typedef struct api {
+typedef struct api_config {
     const char *host;
     const char *client_id;
-} api;
+} api_config;
 
 typedef struct track {
     int id;
@@ -26,13 +26,14 @@ typedef struct track_list {
 typedef struct stream {
     mpg123_handle *mpg123;
     PaStream *pa_stream;
-    const char *url;
+    char *url;
     pthread_t thread;
+    int fd;
 } stream;
 
-track_list *api_recent_tracks(api *api);
-track *api_get_track(api *api, int id);
-track_list *api_user_tracks(api *api, const char *permalink);
+track_list *api_recent_tracks(api_config *api);
+track *api_get_track(api_config *api, int id);
+track_list *api_user_tracks(api_config *api, const char *permalink);
 
 void audio_init();
 
