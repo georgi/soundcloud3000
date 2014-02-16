@@ -1,7 +1,8 @@
-#include <pthread.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "hitpoint/hitpoint.h"
 #include "sds/sds.h"
@@ -17,6 +18,11 @@ void audio_init()
         fprintf(stderr, "%s", Pa_GetErrorText(err));
         exit(1);
     }
+}
+
+int fd_is_valid(int fd)
+{
+    return fcntl(fd, F_GETFD) != -1 || errno != EBADF;
 }
 
 static int portaudio_callback(const void *input_buffer,
@@ -53,14 +59,11 @@ static response *resolve_stream(const char *url)
     return response;
 }
 
-stream *stream_open(const char *url)
+stream *stream_new()
 {
     int err;
-    stream *stream = malloc(sizeof(stream));
-
-    stream->url = sdsnew(url);
-
-    fprintf(stderr, "stream_open: %s\n", url);
+    stream *stream = malloc(sizeof(struct stream));
+    memset(stream, 0, sizeof(struct stream));
 
     if ((stream->mpg123 = mpg123_new(NULL, &err)) == NULL) {
         fprintf(stderr, "%s", mpg123_plain_strerror(err));
@@ -70,14 +73,33 @@ stream *stream_open(const char *url)
     mpg123_param(stream->mpg123, MPG123_VERBOSE, 0, 0);
     mpg123_param(stream->mpg123, MPG123_ADD_FLAGS, MPG123_FORCE_FLOAT, 0.);
 
-    response *response = resolve_stream(url);
-    stream->fd = response->fd;
-
-    mpg123_open_fd(stream->mpg123, response->fd);
-
-    free_response(response);
-    
     return stream;
+}
+
+int stream_open(stream *stream, const char *url)
+{
+    fprintf(stderr, "stream_open: %s\n", url);
+    stream->url = sdsnew(url);
+
+    response *response = resolve_stream(url);
+
+    if (response == NULL) {
+        return -1;
+    }
+
+    if (stream->fd > 3 && fd_is_valid(stream->fd)) {
+        close(stream->fd);
+        mpg123_close(stream->mpg123);
+    }
+    
+    stream->fd = response->fd;
+    free_response(response);
+
+    if (mpg123_open_fd(stream->mpg123, stream->fd) != MPG123_OK) {
+        return -1;
+    }
+    
+    return 0;
 }
 
 int stream_start(stream *stream)
@@ -87,7 +109,7 @@ int stream_start(stream *stream)
                                    2,           /* stereo output */
                                    paFloat32,   /* 32 bit floating point output */
                                    44100,       /* sample rate*/
-                                   64,         /* frames_per_buffer */
+                                   1 << 14,        /* frames_per_buffer */
                                    portaudio_callback,
                                    (void*) stream);
 
@@ -142,10 +164,11 @@ int stream_stop(stream *stream)
 
 void stream_close(stream *stream)
 {
+    Pa_CloseStream(stream->pa_stream);
+
     mpg123_close(stream->mpg123);
     mpg123_delete(stream->mpg123);
-    Pa_CloseStream(stream->pa_stream);
-    pthread_cancel(stream->thread);
+
     sdsfree(stream->url);
     close(stream->fd);
 

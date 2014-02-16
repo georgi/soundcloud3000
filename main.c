@@ -26,18 +26,20 @@ void handle_play(request *request) {
 
     sds url = sdscatprintf(sdsempty(),  "%s?client_id=%s", track->stream_url, api.client_id);
 
-    if (current_stream != NULL) {
-        stream_close(current_stream);
-    }
+    stream_stop(current_stream);
+    stream_close(current_stream);
 
-    current_stream = stream_open(url);
+    current_stream = stream_new();
 
-    if (current_stream == NULL || stream_start(current_stream) != 0) {
-        write_error(request, "stream failed");
+    if (stream_open(current_stream, url) != 0) {
+        write_error(request, "stream open failed");
         return;
     }
 
-    stream_start(current_stream);
+    if (stream_start(current_stream) != 0) {
+        write_error(request, "stream start failed");
+        return;
+    }
 
     write_status(request, 200, "OK");
     write_header(request, "Content-Type", "text/html");
@@ -76,6 +78,8 @@ int main() {
     api.client_id = "344564835576cb4df3cad0e34fa2fe0a";
 
     audio_init();
+
+    current_stream = stream_new();
     
     server server;
     server.handlers = NULL;

@@ -27,21 +27,31 @@ typedef struct stream {
     mpg123_handle *mpg123;
     PaStream *pa_stream;
     char *url;
-    pthread_t thread;
     int fd;
 } stream;
 
 track_list *api_recent_tracks(api_config *api);
+
 track *api_get_track(api_config *api, int id);
+
 track_list *api_user_tracks(api_config *api, const char *permalink);
 
 void audio_init();
 
-stream *stream_open(const char *url);
+stream *stream_new();
+
+int stream_open(stream *stream, const char *url);
+
 void stream_seek(stream *stream, long position);
+
 void stream_close(stream *stream);
+
 int stream_read(stream *stream, void *buffer, size_t buffer_size);
+
 int stream_start(stream *stream);
+
 int stream_stop(stream *stream);
+
 int stream_is_active(stream *stream);
+
 int stream_length(stream *stream);
