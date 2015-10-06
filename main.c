@@ -75,8 +75,13 @@ void handle_user(request *request) {
 
 int main(int argc, char *argv[]) {
     api.host = "api.soundcloud.com";
-    /* who needs to sanitize or validate strings, anyhow? */
-    api.client_id = argv[1];
+
+    if (argc != 2 || strlen(argv[1]) >= CLIENT_ID_LENGTH) {
+      fprintf(stderr, "Usage: %s YOUR_CLIENT_ID\n", argv[0]);
+      exit(1);
+    } else {
+      strncpy(api.client_id, argv[1], CLIENT_ID_LENGTH);
+    }
 
     audio_init();
 

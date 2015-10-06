@@ -2,9 +2,11 @@
 #include <portaudio.h>
 #include <mpg123.h>
 
+int const CLIENT_ID_LENGTH = 50;
+
 typedef struct api_config {
-    const char *host;
-    const char *client_id;
+  const char *host;
+  char client_id[CLIENT_ID_LENGTH];
 } api_config;
 
 typedef struct track {
