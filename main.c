@@ -21,7 +21,7 @@ void handle_play(request *request) {
         write_error(request, "invalid url");
         return;
     }
-    
+
     track *track = api_get_track(&api, id);
 
     sds url = sdscatprintf(sdsempty(),  "%s?client_id=%s", track->stream_url, api.client_id);
@@ -54,7 +54,7 @@ void handle_user(request *request) {
         write_error(request, "invalid url");
         return;
     }
-    
+
     track_list *list = api_user_tracks(&api, permalink);
 
     if (list == NULL) {
@@ -67,25 +67,26 @@ void handle_user(request *request) {
     for (int i = 0; i < list->count; i++) {
         body = sdscatprintf(body, "<a href='/play/%d'>%s</li>", list->tracks[i].id, list->tracks[i].title);
     }
-    
+
     write_status(request, 200, "OK");
     write_header(request, "Content-Type", "text/html");
     write_body(request, body);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     api.host = "api.soundcloud.com";
-    api.client_id = "344564835576cb4df3cad0e34fa2fe0a";
+    /* who needs to sanitize or validate strings, anyhow? */
+    api.client_id = argv[1];
 
     audio_init();
 
     current_stream = stream_new();
-    
+
     server server;
     server.handlers = NULL;
-    server.address.sin_family = AF_INET;    
-    server.address.sin_addr.s_addr = INADDR_ANY;    
-    server.address.sin_port = htons(3000);    
+    server.address.sin_family = AF_INET;
+    server.address.sin_addr.s_addr = INADDR_ANY;
+    server.address.sin_port = htons(3000);
 
     add_handler(&server, "/user", handle_user);
     add_handler(&server, "/play", handle_play);
